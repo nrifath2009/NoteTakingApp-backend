@@ -1,0 +1,387 @@
+openapi: 3.0.3
+info:
+  title: Secure Notes API
+  version: 1.0.0
+  description: JWT-authenticated note-taking API with role-based access, ownership checks, and MongoDB aggregations.
+servers:
+  - url: http://localhost:5000
+tags:
+  - name: Auth
+  - name: Notes
+  - name: Admin
+  - name: Posts
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        success: { type: boolean, example: false }
+        message: { type: string }
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              path: { type: string }
+              message: { type: string }
+    Pagination:
+      type: object
+      properties:
+        page: { type: integer }
+        limit: { type: integer }
+        total: { type: integer }
+        totalPages: { type: integer }
+    User:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string }
+        role: { type: string, enum: [user, admin] }
+        interests: { type: array, items: { type: string } }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    Note:
+      type: object
+      properties:
+        id: { type: string }
+        userId: { type: string }
+        title: { type: string }
+        content: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    Post:
+      type: object
+      properties:
+        id: { type: string }
+        userId: { type: string }
+        title: { type: string }
+        content: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+paths:
+  /api/health:
+    get:
+      tags: [Auth]
+      summary: Health check
+      responses:
+        "200":
+          description: Service is up
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a user
+      description: Always assigns the user role. A role in the body is ignored.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name: { type: string }
+                email: { type: string, format: email }
+                password: { type: string }
+                interests: { type: array, items: { type: string } }
+      responses:
+        "201": { description: User created }
+        "400": { description: Validation error }
+        "409": { description: Duplicate email }
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string }
+                password: { type: string }
+      responses:
+        "200": { description: Access token }
+        "401": { description: Invalid credentials }
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      summary: Current user
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Profile }
+        "401": { description: Unauthorized }
+    put:
+      tags: [Auth]
+      summary: Update the signed-in user's profile
+      description: Updates name, email, and interests. Role cannot be changed here.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, interests]
+              properties:
+                name: { type: string }
+                email: { type: string, format: email }
+                interests: { type: array, items: { type: string } }
+      responses:
+        "200": { description: Updated profile }
+        "400": { description: Validation error }
+        "401": { description: Unauthorized }
+        "409": { description: Duplicate email }
+  /api/auth/change-password:
+    post:
+      tags: [Auth]
+      summary: Change the signed-in user's password
+      description: Requires the current password. The new password uses the same strength rule as registration. A wrong current password is 400 so the session stays signed in.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword: { type: string }
+                newPassword: { type: string }
+      responses:
+        "200": { description: Password changed }
+        "400": { description: Validation error or incorrect current password }
+        "401": { description: Unauthorized }
+  /api/notes:
+    post:
+      tags: [Notes]
+      summary: Create a note
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, content]
+              properties:
+                title: { type: string }
+                content: { type: string }
+      responses:
+        "201": { description: Created }
+    get:
+      tags: [Notes]
+      summary: List the caller's notes
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer, minimum: 1, default: 1 }
+        - in: query
+          name: limit
+          schema: { type: integer, minimum: 1, maximum: 100, default: 10 }
+      responses:
+        "200": { description: Paginated notes }
+  /api/notes/{id}:
+    get:
+      tags: [Notes]
+      summary: Get a note
+      description: Owner or admin.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Note }
+        "404": { description: Not found }
+    put:
+      tags: [Notes]
+      summary: Update a note
+      description: Owner only, including admins.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+                content: { type: string }
+      responses:
+        "200": { description: Updated }
+        "404": { description: Not the owner }
+    delete:
+      tags: [Notes]
+      summary: Delete a note
+      description: Owner only, including admins.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Deleted }
+        "404": { description: Not the owner }
+  /api/admin/notes:
+    get:
+      tags: [Admin]
+      summary: List every note
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer }
+        - in: query
+          name: limit
+          schema: { type: integer }
+      responses:
+        "200": { description: Paginated notes }
+        "403": { description: Forbidden }
+  /api/admin/users:
+    get:
+      tags: [Admin]
+      summary: List users
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Paginated users }
+    post:
+      tags: [Admin]
+      summary: Create a user
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password, role]
+              properties:
+                name: { type: string }
+                email: { type: string }
+                password: { type: string }
+                role: { type: string, enum: [user, admin] }
+                interests: { type: array, items: { type: string } }
+      responses:
+        "201": { description: Created }
+        "409": { description: Duplicate email }
+  /api/admin/users/{id}:
+    get:
+      tags: [Admin]
+      summary: Get a user
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: User }
+        "404": { description: Not found }
+    put:
+      tags: [Admin]
+      summary: Update a user
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                email: { type: string }
+                role: { type: string, enum: [user, admin] }
+                interests: { type: array, items: { type: string } }
+      responses:
+        "200": { description: Updated }
+        "409": { description: Duplicate email or last admin }
+    delete:
+      tags: [Admin]
+      summary: Delete a user and that user's notes and posts
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Deleted }
+        "409": { description: Last admin }
+  /api/admin/analytics/interests:
+    get:
+      tags: [Admin]
+      summary: Group users by interest
+      description: Single User.aggregate with $project, $unwind, $group, $sort, and $facet.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: query
+          name: page
+          schema: { type: integer }
+        - in: query
+          name: limit
+          schema: { type: integer }
+      responses:
+        "200": { description: Paginated interest counts }
+  /api/posts:
+    post:
+      tags: [Posts]
+      summary: Create a post
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, content]
+              properties:
+                title: { type: string }
+                content: { type: string }
+      responses:
+        "201": { description: Created }
+    get:
+      tags: [Posts]
+      summary: List public posts
+      security: [{ bearerAuth: [] }]
+      responses:
+        "200": { description: Paginated posts }
+  /api/users/{userId}/posts:
+    get:
+      tags: [Posts]
+      summary: Posts for one user via $lookup
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema: { type: string }
+        - in: query
+          name: page
+          schema: { type: integer }
+        - in: query
+          name: limit
+          schema: { type: integer }
+      responses:
+        "200": { description: Author and paginated posts }
+        "404": { description: User not found }
