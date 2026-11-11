@@ -11,6 +11,7 @@ import { postRouter, userPostRouter } from "./modules/posts/post.routes.js";
 import { adminUserRouter, analyticsRouter } from "./modules/users/user.routes.js";
 import { AppError } from "./utils/app-error.js";
 import { success } from "./utils/api-response.js";
+import { API_PATHS, API_MESSAGES } from "./constants.js";
 
 export function createApp() {
   const app = express();
@@ -37,24 +38,24 @@ export function createApp() {
     }),
   );
   app.use(express.json({ limit: "100kb" }));
-  app.use("/api", apiRateLimit);
+  app.use(API_PATHS.PREFIX, apiRateLimit);
 
-  app.get("/api/health", (_req, res) => {
+  app.get(API_PATHS.HEALTH, (_req, res) => {
     res.json(success({ status: "ok" }));
   });
 
-  app.use("/api/auth", authRouter);
-  app.use("/api/notes", noteRouter);
-  app.use("/api/admin/notes", adminNoteRouter);
-  app.use("/api/admin/users", adminUserRouter);
-  app.use("/api/admin/analytics", analyticsRouter);
-  app.use("/api/posts", postRouter);
-  app.use("/api/users", userPostRouter);
+  app.use(API_PATHS.AUTH, authRouter);
+  app.use(API_PATHS.NOTES, noteRouter);
+  app.use(API_PATHS.ADMIN_NOTES, adminNoteRouter);
+  app.use(API_PATHS.ADMIN_USERS, adminUserRouter);
+  app.use(API_PATHS.ADMIN_ANALYTICS, analyticsRouter);
+  app.use(API_PATHS.POSTS, postRouter);
+  app.use(API_PATHS.USERS, userPostRouter);
 
   setupSwagger(app);
 
   app.use((_req, _res, next) => {
-    next(new AppError("Resource not found", 404));
+    next(new AppError(API_MESSAGES.RESOURCE_NOT_FOUND, 404));
   });
   app.use(errorHandler);
 

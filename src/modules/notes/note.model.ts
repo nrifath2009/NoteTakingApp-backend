@@ -1,4 +1,5 @@
 import mongoose, { type HydratedDocument } from "mongoose";
+import { MONGO_NAMES } from "../../constants.js";
 
 export interface NoteDocument {
   userId: mongoose.Types.ObjectId;
@@ -10,7 +11,7 @@ export interface NoteDocument {
 
 const noteSchema = new mongoose.Schema<NoteDocument>(
   {
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: MONGO_NAMES.USER_MODEL, required: true },
     title: { type: String, required: true, trim: true },
     content: { type: String, required: true },
   },

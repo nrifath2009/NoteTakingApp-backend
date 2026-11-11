@@ -3,6 +3,7 @@ import { User } from "../users/user.model.js";
 import { Post, type PostModelDocument } from "./post.model.js";
 import { AppError } from "../../utils/app-error.js";
 import { LIST_SORT, paginationMeta } from "../../utils/pagination.js";
+import { API_MESSAGES, MONGO_NAMES } from "../../constants.js";
 
 export type PublicPost = {
   id: string;
@@ -67,7 +68,7 @@ export function buildUserPostsPipeline(userId: string, skip: number, limit: numb
     { $match: { _id: new mongoose.Types.ObjectId(userId) } },
     {
       $lookup: {
-        from: "posts",
+        from: MONGO_NAMES.POSTS_COLLECTION,
         localField: "_id",
         foreignField: "userId",
         pipeline: [
@@ -93,7 +94,7 @@ export async function listPostsForUser(userId: string, page: number, limit: numb
     buildUserPostsPipeline(userId, skip, limit),
   );
   const doc = result[0];
-  if (!doc) throw new AppError("Resource not found", 404);
+  if (!doc) throw new AppError(API_MESSAGES.RESOURCE_NOT_FOUND, 404);
 
   const bucket = doc.posts[0];
   const rows = bucket?.data ?? [];

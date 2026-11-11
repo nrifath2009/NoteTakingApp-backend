@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { emailSchema, interestsSchema, nameSchema, passwordSchema } from "../users/user.schema.js";
+import { API_MESSAGES } from "../../constants.js";
 
 export const registerSchema = z.object({
   body: z.object({
@@ -24,7 +25,7 @@ export const changePasswordSchema = z.object({
       newPassword: passwordSchema,
     })
     .refine((value) => value.currentPassword !== value.newPassword, {
-      message: "New password must be different",
+      message: API_MESSAGES.NEW_PASSWORD_MUST_DIFFER,
       path: ["newPassword"],
     }),
 });

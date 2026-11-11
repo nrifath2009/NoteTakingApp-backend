@@ -1,6 +1,7 @@
 import type { RequestHandler } from "express";
 import type { ZodType } from "zod";
 import { AppError } from "../utils/app-error.js";
+import { API_MESSAGES } from "../constants.js";
 
 export function validate(schema: ZodType): RequestHandler {
   return (req, _res, next) => {
@@ -13,7 +14,7 @@ export function validate(schema: ZodType): RequestHandler {
     if (!result.success) {
       next(
         new AppError(
-          "Validation error",
+          API_MESSAGES.VALIDATION_ERROR,
           400,
           result.error.issues.map((issue) => ({
             path: issue.path.join("."),
@@ -35,7 +36,7 @@ export function validate(schema: ZodType): RequestHandler {
 
 export function validated<T>(req: Express.Request): T {
   if (!req.validated) {
-    throw new AppError("Validation error", 400);
+    throw new AppError(API_MESSAGES.VALIDATION_ERROR, 400);
   }
   return req.validated as T;
 }

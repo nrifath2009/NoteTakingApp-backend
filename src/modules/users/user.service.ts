@@ -6,8 +6,7 @@ import type { UserRole } from "./user.schema.js";
 import { User, type UserModelDocument } from "./user.model.js";
 import { AppError } from "../../utils/app-error.js";
 import { LIST_SORT, paginationMeta } from "../../utils/pagination.js";
-
-const BCRYPT_COST = 10;
+import { API_MESSAGES, AUTH_CONFIG, DEFAULT_CONFIG, USER_ROLE } from "../../constants.js";
 
 export type PublicUser = {
   id: string;
@@ -42,7 +41,7 @@ export function toPublicUser(user: UserModelDocument): PublicUser {
 }
 
 export function hashPassword(password: string): Promise<string> {
-  return bcrypt.hash(password, BCRYPT_COST);
+  return bcrypt.hash(password, AUTH_CONFIG.BCRYPT_COST);
 }
 
 export async function createUser(input: {
@@ -53,7 +52,7 @@ export async function createUser(input: {
   interests?: string[];
 }): Promise<PublicUser> {
   const existing = await User.findOne({ email: input.email });
-  if (existing) throw new AppError("Email already registered", 409);
+  if (existing) throw new AppError(API_MESSAGES.EMAIL_ALREADY_REGISTERED, 409);
 
   const user = await User.create({
     name: input.name,
@@ -79,14 +78,14 @@ export async function listUsers(page: number, limit: number) {
 
 export async function getUser(id: string): Promise<PublicUser> {
   const user = await User.findById(id);
-  if (!user) throw new AppError("Resource not found", 404);
+  if (!user) throw new AppError(API_MESSAGES.RESOURCE_NOT_FOUND, 404);
   return toPublicUser(user);
 }
 
 async function assertNotLastAdmin(): Promise<void> {
-  const adminCount = await User.countDocuments({ role: "admin" });
+  const adminCount = await User.countDocuments({ role: USER_ROLE.ADMIN });
   if (adminCount <= 1) {
-    throw new AppError("Cannot remove the last administrator", 409);
+    throw new AppError(API_MESSAGES.LAST_ADMIN_REMOVAL, 409);
   }
 }
 
@@ -95,15 +94,15 @@ export async function updateUser(
   input: { name?: string; email?: string; role?: UserRole; interests?: string[] },
 ): Promise<PublicUser> {
   const user = await User.findById(id);
-  if (!user) throw new AppError("Resource not found", 404);
+  if (!user) throw new AppError(API_MESSAGES.RESOURCE_NOT_FOUND, 404);
 
-  if (input.role && user.role === "admin" && input.role !== "admin") {
+  if (input.role && user.role === USER_ROLE.ADMIN && input.role !== USER_ROLE.ADMIN) {
     await assertNotLastAdmin();
   }
 
   if (input.email && input.email !== user.email) {
     const clash = await User.findOne({ email: input.email });
-    if (clash) throw new AppError("Email already registered", 409);
+    if (clash) throw new AppError(API_MESSAGES.EMAIL_ALREADY_REGISTERED, 409);
   }
 
   if (input.name !== undefined) user.name = input.name;
@@ -116,8 +115,8 @@ export async function updateUser(
 
 export async function deleteUser(id: string): Promise<{ id: string }> {
   const user = await User.findById(id);
-  if (!user) throw new AppError("Resource not found", 404);
-  if (user.role === "admin") await assertNotLastAdmin();
+  if (!user) throw new AppError(API_MESSAGES.RESOURCE_NOT_FOUND, 404);
+  if (user.role === USER_ROLE.ADMIN) await assertNotLastAdmin();
 
   await Note.deleteMany({ userId: user._id });
   await Post.deleteMany({ userId: user._id });
@@ -131,10 +130,10 @@ export async function seedAdmin(email: string, password: string): Promise<{ crea
   if (existing) return { created: false };
 
   await User.create({
-    name: "Administrator",
+    name: DEFAULT_CONFIG.ADMIN_NAME,
     email: normalized,
     passwordHash: await hashPassword(password),
-    role: "admin",
+    role: USER_ROLE.ADMIN,
     interests: [],
   });
   return { created: true };

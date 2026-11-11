@@ -3,6 +3,7 @@ import { Note } from "./note.model.js";
 import type { UserRole } from "../users/user.schema.js";
 import { AppError } from "../../utils/app-error.js";
 import { LIST_SORT, paginationMeta } from "../../utils/pagination.js";
+import { API_MESSAGES, USER_ROLE } from "../../constants.js";
 
 export type PublicNote = {
   id: string;
@@ -46,10 +47,10 @@ export async function getNote(
   actor: { id: string; role: UserRole },
 ): Promise<PublicNote> {
   const note =
-    actor.role === "admin"
+    actor.role === USER_ROLE.ADMIN
       ? await Note.findById(id)
       : await Note.findOne({ _id: id, userId: actor.id });
-  if (!note) throw new AppError("Resource not found", 404);
+  if (!note) throw new AppError(API_MESSAGES.RESOURCE_NOT_FOUND, 404);
   return toPublicNote(note);
 }
 
@@ -71,12 +72,12 @@ export async function updateNote(
     { $set: input },
     { new: true, runValidators: true },
   );
-  if (!note) throw new AppError("Resource not found", 404);
+  if (!note) throw new AppError(API_MESSAGES.RESOURCE_NOT_FOUND, 404);
   return toPublicNote(note);
 }
 
 export async function deleteNote(id: string, userId: string): Promise<{ id: string }> {
   const note = await Note.findOneAndDelete({ _id: id, userId });
-  if (!note) throw new AppError("Resource not found", 404);
+  if (!note) throw new AppError(API_MESSAGES.RESOURCE_NOT_FOUND, 404);
   return { id: note.id };
 }

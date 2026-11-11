@@ -1,8 +1,9 @@
 import { z } from "zod";
 import { objectIdSchema } from "../../utils/object-id.js";
 import { paginationQuerySchema } from "../../utils/pagination.js";
+import { API_MESSAGES, USER_ROLES } from "../../constants.js";
 
-export const USER_ROLES = ["user", "admin"] as const;
+export { USER_ROLES };
 export type UserRole = (typeof USER_ROLES)[number];
 
 export const nameSchema = z.string().trim().min(1).max(100);
@@ -53,6 +54,6 @@ export const updateUserSchema = z.object({
         value.email !== undefined ||
         value.role !== undefined ||
         value.interests !== undefined,
-      { message: "Provide at least one field to update" },
+      { message: API_MESSAGES.PROVIDE_USER_FIELDS },
     ),
 });

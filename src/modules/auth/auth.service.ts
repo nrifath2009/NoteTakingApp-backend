@@ -5,6 +5,7 @@ import { requireUser } from "../../middleware/authenticate.js";
 import { User } from "../users/user.model.js";
 import { createUser, hashPassword, toPublicUser, updateUser, type PublicUser } from "../users/user.service.js";
 import { AppError } from "../../utils/app-error.js";
+import { API_MESSAGES, AUTH_CONFIG, USER_ROLE } from "../../constants.js";
 
 export async function register(input: {
   name: string;
@@ -16,7 +17,7 @@ export async function register(input: {
     name: input.name,
     email: input.email,
     password: input.password,
-    role: "user",
+    role: USER_ROLE.USER,
     interests: input.interests,
   });
 }
@@ -25,11 +26,11 @@ export async function login(email: string, password: string) {
   const user = await User.findOne({ email }).select("+passwordHash");
   const matches = user ? await bcrypt.compare(password, user.passwordHash) : false;
   if (!user || !matches) {
-    throw new AppError("Invalid email or password", 401);
+    throw new AppError(API_MESSAGES.INVALID_CREDENTIALS, 401);
   }
 
   const accessToken = jwt.sign({ sub: user.id }, env.jwtSecret, {
-    algorithm: "HS256",
+    algorithm: AUTH_CONFIG.JWT_ALGORITHM,
     expiresIn: env.jwtExpiresIn as jwt.SignOptions["expiresIn"],
     issuer: env.jwtIssuer,
     audience: env.jwtAudience,
@@ -37,7 +38,7 @@ export async function login(email: string, password: string) {
 
   return {
     accessToken,
-    tokenType: "Bearer" as const,
+    tokenType: AUTH_CONFIG.TOKEN_TYPE,
     expiresIn: env.jwtExpiresIn,
     user: toPublicUser(user),
   };
@@ -56,10 +57,10 @@ export function updateProfile(
 
 export async function changePassword(userId: string, currentPassword: string, newPassword: string) {
   const user = await User.findById(userId).select("+passwordHash");
-  if (!user) throw new AppError("User no longer exists", 401);
+  if (!user) throw new AppError(API_MESSAGES.USER_NO_LONGER_EXISTS, 401);
 
   const matches = await bcrypt.compare(currentPassword, user.passwordHash);
-  if (!matches) throw new AppError("Current password is incorrect", 400);
+  if (!matches) throw new AppError(API_MESSAGES.CURRENT_PASSWORD_INCORRECT, 400);
 
   user.passwordHash = await hashPassword(newPassword);
   await user.save();

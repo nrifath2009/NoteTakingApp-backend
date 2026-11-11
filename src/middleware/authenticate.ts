@@ -4,40 +4,42 @@ import { env } from "../config/env.js";
 import { User } from "../modules/users/user.model.js";
 import type { AuthUser } from "../types/express.js";
 import { AppError } from "../utils/app-error.js";
+import { API_MESSAGES, AUTH_CONFIG } from "../constants.js";
 
 const OBJECT_ID = /^[a-fA-F0-9]{24}$/;
+const BEARER_PREFIX = `${AUTH_CONFIG.TOKEN_TYPE} `;
 
 export const authenticate: RequestHandler = async (req, _res, next) => {
   try {
     const header = req.headers.authorization;
-    if (!header?.startsWith("Bearer ")) {
-      throw new AppError("Authentication required", 401);
+    if (!header?.startsWith(BEARER_PREFIX)) {
+      throw new AppError(API_MESSAGES.AUTHENTICATION_REQUIRED, 401);
     }
 
-    const token = header.slice("Bearer ".length).trim();
-    if (!token) throw new AppError("Authentication required", 401);
+    const token = header.slice(BEARER_PREFIX.length).trim();
+    if (!token) throw new AppError(API_MESSAGES.AUTHENTICATION_REQUIRED, 401);
 
     let sub: string;
     try {
       const decoded = jwt.verify(token, env.jwtSecret, {
-        algorithms: ["HS256"],
+        algorithms: [AUTH_CONFIG.JWT_ALGORITHM],
         issuer: env.jwtIssuer,
         audience: env.jwtAudience,
       });
       if (typeof decoded === "string" || typeof decoded.sub !== "string") {
-        throw new Error("Invalid token payload");
+        throw new Error(API_MESSAGES.INVALID_TOKEN_PAYLOAD);
       }
       sub = decoded.sub;
     } catch {
-      throw new AppError("Invalid or expired token", 401);
+      throw new AppError(API_MESSAGES.INVALID_TOKEN, 401);
     }
 
     if (!OBJECT_ID.test(sub)) {
-      throw new AppError("Invalid or expired token", 401);
+      throw new AppError(API_MESSAGES.INVALID_TOKEN, 401);
     }
 
     const user = await User.findById(sub);
-    if (!user) throw new AppError("User no longer exists", 401);
+    if (!user) throw new AppError(API_MESSAGES.USER_NO_LONGER_EXISTS, 401);
 
     const authUser: AuthUser = {
       id: user.id,
@@ -56,6 +58,6 @@ export const authenticate: RequestHandler = async (req, _res, next) => {
 };
 
 export function requireUser(req: Express.Request): AuthUser {
-  if (!req.user) throw new AppError("Authentication required", 401);
+  if (!req.user) throw new AppError(API_MESSAGES.AUTHENTICATION_REQUIRED, 401);
   return req.user;
 }

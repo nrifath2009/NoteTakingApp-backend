@@ -2,6 +2,7 @@ import type { z } from "zod";
 import { asyncHandler } from "../../middleware/async-handler.js";
 import { validated } from "../../middleware/validate.js";
 import { success } from "../../utils/api-response.js";
+import { API_MESSAGES } from "../../constants.js";
 import { changePasswordSchema, loginSchema, registerSchema, updateProfileSchema } from "./auth.schema.js";
 import * as authService from "./auth.service.js";
 
@@ -32,5 +33,5 @@ export const changePassword = asyncHandler(async (req, res) => {
   const { body } = validated<z.infer<typeof changePasswordSchema>>(req);
   const actor = authService.currentUser(req);
   await authService.changePassword(actor.id, body.currentPassword, body.newPassword);
-  res.json(success({ message: "Password changed" }));
+  res.json(success({ message: API_MESSAGES.PASSWORD_CHANGED }));
 });

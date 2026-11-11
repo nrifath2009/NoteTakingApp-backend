@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { objectIdSchema } from "../../utils/object-id.js";
 import { paginationQuerySchema } from "../../utils/pagination.js";
+import { API_MESSAGES } from "../../constants.js";
 
 const titleSchema = z.string().trim().min(1).max(200);
 const contentSchema = z.string().trim().min(1).max(10000);
@@ -28,6 +29,6 @@ export const updateNoteSchema = z.object({
       content: contentSchema.optional(),
     })
     .refine((value) => value.title !== undefined || value.content !== undefined, {
-      message: "Provide title or content to update",
+      message: API_MESSAGES.PROVIDE_TITLE_OR_CONTENT,
     }),
 });
